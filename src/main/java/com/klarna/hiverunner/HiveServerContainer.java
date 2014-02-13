@@ -16,10 +16,7 @@
 
 package com.klarna.hiverunner;
 
-import com.klarna.derby.DerbyUtils;
-import com.klarna.reflection.ReflectionUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.HiveMetaStore;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.ql.parse.VariableSubstitution;
 import org.apache.hadoop.hive.service.HiveServer;
@@ -34,7 +31,7 @@ import java.util.Map;
 /**
  * HiveServer wrapper
  */
- public class HiveServerContainer {
+public class HiveServerContainer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HiveServerContainer.class);
 
@@ -116,17 +113,27 @@ import java.util.Map;
      */
     public void tearDown() {
         try {
-            // Reset to default schema
-            client.execute("USE default");
+
+            // Drop all hive databases except default (cannot be dropped)
+            List<String> databases = executeQuery("show databases");
+            for (String database : databases) {
+                if (!database.equals("default")) {
+                    executeQuery("drop database " + database);
+                }
+            }
+
+            // Drop all tables in default database
+            executeScript("USE default");
+            List<String> tables = executeQuery("show tables");
+            for (String table : tables) {
+                executeScript("drop table " + table);
+            }
         } catch (Throwable e) {
             throw new IllegalStateException("Failed to reset to default schema: " + e.getMessage(), e);
         } finally {
-            DerbyUtils.dropDerbyDatabase(context.getMetaStoreUrl());
             client.shutdown();
             client = null;
 
-            // Force reset of static field 'createDefaultDB' since Hive will not recreate the meta store otherwise.
-            ReflectionUtils.setStaticField(HiveMetaStore.HMSHandler.class, "createDefaultDB", false);
             LOGGER.info("Tore down HiveServer instance");
         }
     }

@@ -1,3 +1,11 @@
+This branch was created to test what happens if we choose to not restart derby after each test method.
+
+Discovered results:
+The changes cut HiveRunners own test suite execution time roughly in half. On my machine it went from 78s to 38s
+However, I did notice basically no effects on some of our other projects that has HiveRunner suites, so it
+looks like the performance gain is very much dependent on the nature of the suite.
+
+
 ![ScreenShot](/images/HiveRunnerSplash.png)
 
 

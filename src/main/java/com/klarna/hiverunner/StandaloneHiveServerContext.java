@@ -45,7 +45,7 @@ class StandaloneHiveServerContext implements HiveServerContext {
     StandaloneHiveServerContext(TemporaryFolder basedir) {
         this.basedir = basedir;
 
-        this.metaStorageUrl = "jdbc:derby:memory:" + UUID.randomUUID().toString();
+        this.metaStorageUrl = "jdbc:derby:memory:hiverunnermetastore";
 
         hiveConf.setBoolVar(HIVESTATSAUTOGATHER, false);
 
