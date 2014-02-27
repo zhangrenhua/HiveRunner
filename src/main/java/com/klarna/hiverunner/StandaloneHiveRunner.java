@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -49,6 +50,7 @@ import static org.reflections.ReflectionUtils.withAnnotation;
 public class StandaloneHiveRunner extends BlockJUnit4ClassRunner {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StandaloneHiveRunner.class);
+    private static TemporaryFolder testBaseDir;
 
     public StandaloneHiveRunner(Class<?> clazz) throws InitializationError {
         super(clazz);
@@ -64,7 +66,14 @@ public class StandaloneHiveRunner extends BlockJUnit4ClassRunner {
     @Override
     protected List<TestRule> getTestRules(final Object target) {
 
-        final TemporaryFolder testBaseDir = new TemporaryFolder();
+        if (testBaseDir == null) {
+            testBaseDir = new TemporaryFolder();
+            try {
+                testBaseDir.create();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
 
         TestRule hiveRunnerRule = new TestRule() {
             @Override
@@ -81,8 +90,8 @@ public class StandaloneHiveRunner extends BlockJUnit4ClassRunner {
         List<TestRule> rules = new ArrayList<TestRule>();
         rules.addAll(super.getTestRules(target));
         rules.add(hiveRunnerRule);
-        rules.add(testBaseDir);
-
+//        rules.add(testBaseDir);
+//
         return rules;
     }
 

@@ -26,15 +26,18 @@ import org.junit.runner.RunWith;
 import java.io.File;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.UUID;
 
 @RunWith(StandaloneHiveRunner.class)
 public class MethodLevelResourceTest {
+
+    private String uuid = UUID.randomUUID().toString();
 
     @HiveSetupScript
     String createTable = "CREATE EXTERNAL TABLE foo (i INT, j INT, k INT)" +
             "  ROW FORMAT DELIMITED FIELDS TERMINATED BY ','" +
             "  STORED AS TEXTFILE" +
-            "  LOCATION '${hiveconf:hadoop.tmp.dir}'";
+            "  LOCATION '${hiveconf:hadoop.tmp.dir}/" + uuid + "'";
 
     @HiveSQL(files = {}, autoStart = false)
     private HiveShell hiveShell;
@@ -42,7 +45,7 @@ public class MethodLevelResourceTest {
     @Test()
     public void resourceLoadingAsStringTest() {
 
-        hiveShell.addResource("${hiveconf:hadoop.tmp.dir}/data.csv", "1,2,3");
+        hiveShell.addResource("${hiveconf:hadoop.tmp.dir}/" +uuid +  "/data.csv", "1,2,3");
         hiveShell.start();
 
         Assert.assertEquals(Arrays.asList("1\t2\t3"), hiveShell.executeQuery("SELECT * FROM foo"));
@@ -51,7 +54,7 @@ public class MethodLevelResourceTest {
     @Test()
     public void resourceLoadingAsFileTest() throws URISyntaxException {
 
-        hiveShell.addResource("${hiveconf:hadoop.tmp.dir}/data.csv",
+        hiveShell.addResource("${hiveconf:hadoop.tmp.dir}/" +uuid +  "/data.csv",
                 new File(Resources.getResource("methodLevelResourceTest/MethodLevelResourceTest.txt").toURI()));
 
         hiveShell.start();

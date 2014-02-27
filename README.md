@@ -1,7 +1,7 @@
-Branch that explores the possibilities to use hsqldb instead of derby. At first glance it seems to work and performance
-is slightly better. Another improvement is that we no longer pollute our working dir with derby files from the test runs.
+Ugly hack to explore what happens with execution times if the lifecycle of the Hive Server is extended to the whole test suite instead of a single test method. Profiling with yorkit shows improvements with about 40%.
+ This branch should not be used as is. There are leaks between test cases. This is temporary solved within each test case just to be able to profile, but this is not a viable solution.
 
-The latest commit managed to shave half of the time from a reference project. It's getting faster but it's still slow by unit test terms.
+  The code should be refactored to enable to elongate the life cycle without polution between test cases.
 
 
 ![ScreenShot](/images/HiveRunnerSplash.png)

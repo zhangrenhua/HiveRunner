@@ -26,7 +26,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.UUID;
 
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.*;
 
@@ -39,52 +38,60 @@ class StandaloneHiveServerContext implements HiveServerContext {
 
     private String metaStorageUrl;
 
-    private HiveConf hiveConf = new HiveConf();
+    private static HiveConf hiveConf;
 
     private TemporaryFolder basedir;
 
     StandaloneHiveServerContext(TemporaryFolder basedir) {
         this.basedir = basedir;
 
-        this.metaStorageUrl = "jdbc:hsqldb:mem:" + UUID.randomUUID().toString();
+        if (hiveConf == null) {
 
-        hiveConf.setBoolVar(HIVESTATSAUTOGATHER, false);
+            hiveConf = new HiveConf();
 
-        // Set the hsqldb driver. datanucleus will
-        hiveConf.set("datanucleus.connectiondrivername", "org.hsqldb.jdbc.JDBCDriver");
-        hiveConf.set("javax.jdo.option.ConnectionDriverName", "org.hsqldb.jdbc.JDBCDriver");
 
-        // No pooling needed. This will save us a lot of threads
-        hiveConf.set("datanucleus.connectionPoolingType", "None");
 
-        // Defaults to a 1000 millis sleep in
-        // org.apache.hadoop.hive.ql.exec.mr.HadoopJobExecHelper.
-        hiveConf.setLongVar(HiveConf.ConfVars.HIVECOUNTERSPULLINTERVAL, 1L);
+//        this.metaStorageUrl = "jdbc:hsqldb:mem:" + UUID.randomUUID().toString();
+            this.metaStorageUrl = "jdbc:hsqldb:mem:FOO";
 
-        hiveConf.setVar(HADOOPBIN, "NO_BIN!");
+            hiveConf.setBoolVar(HIVESTATSAUTOGATHER, false);
 
-        try {
-            Class.forName(JDBCDriver.class.getName());
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
+            // Set the hsqldb driver. datanucleus will
+            hiveConf.set("datanucleus.connectiondrivername", "org.hsqldb.jdbc.JDBCDriver");
+            hiveConf.set("javax.jdo.option.ConnectionDriverName", "org.hsqldb.jdbc.JDBCDriver");
+
+            // No pooling needed. This will save us a lot of threads
+            hiveConf.set("datanucleus.connectionPoolingType", "None");
+
+            // Defaults to a 1000 millis sleep in
+            // org.apache.hadoop.hive.ql.exec.mr.HadoopJobExecHelper.
+            hiveConf.setLongVar(HiveConf.ConfVars.HIVECOUNTERSPULLINTERVAL, 1L);
+
+            hiveConf.setVar(HADOOPBIN, "NO_BIN!");
+
+            try {
+                Class.forName(JDBCDriver.class.getName());
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+
+
+            configureJavaSecurityRealm(hiveConf);
+
+            configureJobTrackerMode(hiveConf);
+
+            configureSupportConcurrency(hiveConf);
+
+            configureFileSystem(basedir, hiveConf);
+
+            configureMetaStoreValidation(hiveConf);
+
+            configureMapReduceOptimizations(hiveConf);
+
+            configureCheckForDefaultDb(hiveConf);
+
+            configureAssertionStatus(hiveConf);
         }
-
-
-        configureJavaSecurityRealm(hiveConf);
-
-        configureJobTrackerMode(hiveConf);
-
-        configureSupportConcurrency(hiveConf);
-
-        configureFileSystem(basedir, hiveConf);
-
-        configureMetaStoreValidation(hiveConf);
-
-        configureMapReduceOptimizations(hiveConf);
-
-        configureCheckForDefaultDb(hiveConf);
-
-        configureAssertionStatus(hiveConf);
     }
 
     protected void configureJavaSecurityRealm(HiveConf hiveConf) {

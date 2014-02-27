@@ -28,8 +28,8 @@ import java.util.List;
 @RunWith(StandaloneHiveRunner.class)
 public class LeftOuterJoinTest {
 
-    private final String hdfsSourceFoo = "${hiveconf:hadoop.tmp.dir}/foo";
-    private final String hdfsSourceBar = "${hiveconf:hadoop.tmp.dir}/bar";
+    private final String hdfsSourceFoo = "${hiveconf:hadoop.tmp.dir}/LOVE_12334/foo";
+    private final String hdfsSourceBar = "${hiveconf:hadoop.tmp.dir}/LOVE_12334/bar";
 
     @HiveSetupScript
     String setup =

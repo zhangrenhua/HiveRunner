@@ -27,19 +27,22 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * HiveServer wrapper
  */
- public class HiveServerContainer {
+public class HiveServerContainer {
+
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HiveServerContainer.class);
 
-    private HiveServer.HiveServerHandler client;
+    private static HiveServer.HiveServerHandler client;
 
     private HiveServerContext context;
+    private static Map<String,String> defaultProperties = new HashMap<>();
 
     HiveServerContainer() {
     }
@@ -59,19 +62,38 @@ import java.util.Map;
 
         HiveConf hiveConf = context.getHiveConf();
 
-        // merge test case properties with hive conf before HiveServer is started.
-        for (Map.Entry<String, String> property : testConfig.entrySet()) {
-            hiveConf.set(property.getKey(), property.getValue());
+        if (client == null) {
+            try {
+                client = new HiveServer.HiveServerHandler(hiveConf);
+            } catch (MetaException e) {
+                throw new IllegalStateException("Failed to create HiveServer :" + e.getMessage(), e);
+            }
         }
 
+        cleanAndSetTestCaseProperties(testConfig, hiveConf);
+    }
+
+    private void cleanAndSetTestCaseProperties(Map<String, String> testConfig, HiveConf hiveConf) {
+        for (Map.Entry<String, String> defaultProperty : defaultProperties.entrySet()) {
+            if (defaultProperty.getValue() != null) {
+                setProperty(defaultProperty.getKey(), defaultProperty.getValue());
+            }
+        }
+
+        defaultProperties = new HashMap<String, String>();
+
+        for (Map.Entry<String, String> valuePair : testConfig.entrySet()) {
+            defaultProperties.put(valuePair.getKey(), hiveConf.get(valuePair.getKey()));
+            setProperty(valuePair.getKey(), valuePair.getValue());
+        }
+    }
+
+    private void setProperty(String key, String value) {
         try {
-            client = new HiveServer.HiveServerHandler(hiveConf);
-        } catch (MetaException e) {
-            throw new IllegalStateException("Failed to create HiveServer :" + e.getMessage(), e);
+            client.execute("set " + key + "=" + value);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set property: " + e.getMessage(), e);
         }
-
-        // Smoke test HiveServer started
-        pingHiveServer();
     }
 
 
@@ -115,16 +137,29 @@ import java.util.Map;
      */
     public void tearDown() {
         try {
-            // Reset to default schema
-            client.execute("USE default");
+
+            // Drop all hive databases except default (cannot be dropped)
+            List<String> databases = executeQuery("show databases");
+            for (String database : databases) {
+                if (!database.equals("default")) {
+                    executeQuery("drop database " + database + " CASCADE");
+                }
+            }
+
+            // Drop all tables in default database
+            executeScript("USE default");
+            List<String> tables = executeQuery("show tables");
+            for (String table : tables) {
+                executeScript("drop table " + table);
+            }
         } catch (Throwable e) {
             throw new IllegalStateException("Failed to reset to default schema: " + e.getMessage(), e);
         } finally {
             client.shutdown();
             client = null;
 
-            // Force reset of static field 'createDefaultDB' since Hive will not recreate the meta store otherwise.
             ReflectionUtils.setStaticField(HiveMetaStore.HMSHandler.class, "createDefaultDB", false);
+
             LOGGER.info("Tore down HiveServer instance");
         }
     }
