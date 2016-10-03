@@ -1,7 +1,6 @@
 package com.klarna.hiverunner;
 
 import com.klarna.hiverunner.annotations.HiveSQL;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
