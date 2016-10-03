@@ -37,13 +37,31 @@ public class ViewTest {
                 .addRow(2, "v4")
                 .commit();
 
+        // Using alias names is fine
         shell.execute(new StringBuilder()
-                .append("create view test_db.test_view ")
-                .append("as select a.* from test_db.tableA a, test_db.tableB b  ")
-                .append("where a.id = b.id")
+                .append("create view test_db.test_view1 ")
+                .append("as select 1 from test_db.tableA a ")
+                .append("join test_db.tableB b ")
+                .append("on a.id = b.id;")
                 .toString());
 
-        shell.executeStatement("select * from test_db.test_view");
+        // Using all lowercase is fine
+        shell.execute(new StringBuilder()
+                .append("create view test_db.test_view2 ")
+                .append("as select 1 from test_db.tablea ")
+                .append("join test_db.tableb ")
+                .append("on tablea.id = tableb.id;")
+                .toString());
+
+        // Using mixed case in create VIEW statement (with a JOIN ON construction) is not OK
+        shell.execute(new StringBuilder()
+                .append("create view test_db.test_view3 ")
+                .append("as select 1 from test_db.tableA ")
+                .append("join test_db.tableB ")
+                .append("on tableA.id = tableB.id;")
+                .toString());
+
+        shell.executeStatement("select * from test_db.test_view1");
     }
 
 
