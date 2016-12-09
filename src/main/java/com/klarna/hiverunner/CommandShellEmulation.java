@@ -46,16 +46,18 @@ public enum CommandShellEmulation {
     }
   };
 
-  public abstract String transformStatement(String statement);
+    public static final String NL = "\n";
+
+    public abstract String transformStatement(String statement);
 
   public abstract String transformScript(String script);
 
   private static String filterFullLineComments(String statement) {
     StringBuilder newStatement = new StringBuilder(statement.length());
-    for (String line : statement.split("\n")) {
+    for (String line : statement.split(NL)) {
       if (!line.trim().startsWith("--")) {
         newStatement.append(line);
-        newStatement.append('\n');
+        newStatement.append(NL);
       }
     }
     return newStatement.toString().trim();
