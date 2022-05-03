@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -116,7 +116,7 @@ public class BeelineStatementSplitterTest {
         String firstStatement = "CREATE TABLE serde_test (\n" + "  key STRING,\n" + "  value STRING\n" + ")\n"
                 + "ROW FORMAT SERDE 'org.apache.hadoop.hive.contrib.serde2.RegexSerDe'\n" + "WITH SERDEPROPERTIES  (\n"
                 + "\"input.regex\" = \"(.*);\"                                       \n" + ")\n"
-                + "STORED AS TEXTFILE\n" + "LOCATION '${hiveconf:hadoop.tmp.dir}/serde'";
+                + "STORED AS TEXTFILE\n" + "LOCATION '/tmp/serde'";
 
         String secondStatamenet = "select * from foobar";
 

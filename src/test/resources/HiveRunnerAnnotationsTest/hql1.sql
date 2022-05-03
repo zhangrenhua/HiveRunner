@@ -1,4 +1,5 @@
-CREATE EXTERNAL TABLE foo (s1 int, s2 string)
+DROP TABLE IF EXISTS foo;
+CREATE EXTERNAL TABLE foo(s1 int, s2 string)
   ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
   STORED AS TEXTFILE
-  LOCATION '${hiveconf:hadoop.tmp.dir}/foo/';
+  LOCATION '/tmp/foo/';

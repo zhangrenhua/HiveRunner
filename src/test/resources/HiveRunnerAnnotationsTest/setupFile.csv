@@ -1,1 +1,2 @@
+DROP TABLE IF EXISTS fox;
 create table fox(id string);

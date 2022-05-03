@@ -1,5 +1,6 @@
 create database my_schema;
 
-CREATE EXTERNAL TABLE my_schema.result (year STRING, value INT)
+DROP TABLE IF EXISTS my_schema.result;
+CREATE TABLE my_schema.result (year STRING, value INT)
   stored as sequencefile
 ;

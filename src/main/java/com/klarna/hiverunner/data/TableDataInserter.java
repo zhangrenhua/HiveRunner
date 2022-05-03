@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,56 +16,78 @@
  */
 package com.klarna.hiverunner.data;
 
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.klarna.hiverunner.HiveServerContainer;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.time.DateFormatUtils;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hive.hcatalog.data.HCatRecord;
+import org.apache.hive.hcatalog.data.transfer.WriteEntity;
+
+import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hive.hcatalog.common.HCatException;
-import org.apache.hive.hcatalog.data.HCatRecord;
-import org.apache.hive.hcatalog.data.transfer.DataTransferFactory;
-import org.apache.hive.hcatalog.data.transfer.HCatWriter;
-import org.apache.hive.hcatalog.data.transfer.WriteEntity;
-import org.apache.hive.hcatalog.data.transfer.WriterContext;
-
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-
 class TableDataInserter {
 
-  private final String databaseName;
-  private final String tableName;
-  private final Map<String, String> config;
+    private final HiveServerContainer hiveServerContainer;
 
-  TableDataInserter(String databaseName, String tableName, HiveConf conf) {
-    this.databaseName = databaseName;
-    this.tableName = tableName;
-    config = Maps.fromProperties(conf.getAllProperties());
-  }
+    private final String databaseName;
+    private final String tableName;
+    private final Map<String, String> config;
 
-  void insert(Multimap<Map<String, String>, HCatRecord> data) {
-    Iterator<Map<String, String>> iterator = data.keySet().iterator();
-    while (iterator.hasNext()) {
-      Map<String, String> partitionSpec = iterator.next();
-      insert(partitionSpec, data.get(partitionSpec));
+    TableDataInserter(String databaseName, String tableName, HiveConf conf, HiveServerContainer hiveServerContainer) {
+        this.databaseName = databaseName;
+        this.tableName = tableName;
+        config = Maps.fromProperties(conf.getAllProperties());
+        this.hiveServerContainer = hiveServerContainer;
     }
-  }
 
-  private void insert(Map<String, String> partitionSpec, Iterable<HCatRecord> rows) {
-    WriteEntity entity = new WriteEntity.Builder()
-        .withDatabase(databaseName)
-        .withTable(tableName)
-        .withPartition(partitionSpec)
-        .build();
-
-    try {
-      HCatWriter master = DataTransferFactory.getHCatWriter(entity, config);
-      WriterContext context = master.prepareWrite();
-      HCatWriter writer = DataTransferFactory.getHCatWriter(context);
-      writer.write(rows.iterator());
-      master.commit(context);
-    } catch (HCatException e) {
-      throw new RuntimeException("An error occurred while inserting data to " + databaseName + "." + tableName, e);
+    void insert(Multimap<Map<String, String>, HCatRecord> data) {
+        Iterator<Map<String, String>> iterator = data.keySet().iterator();
+        while (iterator.hasNext()) {
+            Map<String, String> partitionSpec = iterator.next();
+            insert(partitionSpec, data.get(partitionSpec));
+        }
     }
-  }
 
+    private void insert(Map<String, String> partitionSpec, Iterable<HCatRecord> rows) {
+        WriteEntity entity = new WriteEntity.Builder()
+                .withDatabase(databaseName)
+                .withTable(tableName)
+                .withPartition(partitionSpec)
+                .build();
+
+        try {
+            for (HCatRecord row : rows) {
+                StringBuilder insertBuilder = new StringBuilder("insert into ");
+                if (StringUtils.isNoneBlank(databaseName)) {
+                    insertBuilder.append(databaseName).append(".");
+                }
+                insertBuilder.append(tableName);
+                insertBuilder.append(" values(");
+
+                for (Object o : row.getAll()) {
+                    String value;
+                    if (o == null) {
+                        value = null;
+                    } else if (o instanceof String || o instanceof Character) {
+                        value = "'" + o + "'";
+                    } else if (o instanceof java.util.Date) {
+                        value = "'" + DateFormatUtils.format((Date) o, "yyyy-MM-dd HH:mm:ss") + "'";
+                    } else {
+                        value = String.valueOf(o);
+                    }
+                    insertBuilder.append(value).append(",");
+                }
+                insertBuilder.delete(insertBuilder.length() - 1, insertBuilder.length());
+                insertBuilder.append(")");
+
+                hiveServerContainer.executeStatement(insertBuilder.toString());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("An error occurred while inserting data to " + databaseName + "." + tableName, e);
+        }
+    }
 }

@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ public class ResourceOutputStreamTest {
     public void writeShouldOnlyBeAllowedBeforeStartHasBeenCalled() throws IOException {
 
         OutputStream resourceOutputStream =
-                shell.getResourceOutputStream("${hiveconf:hadoop.tmp.dir}/baz/foo.bar");
+                shell.getResourceOutputStream("/tmp/baz/foo.bar");
 
         shell.start();
 
@@ -52,13 +52,13 @@ public class ResourceOutputStreamTest {
     public void itShouldBePossibleToAddAResourceByOutputStream() throws IOException {
 
         OutputStream resourceOutputStream =
-                shell.getResourceOutputStream("${hiveconf:hadoop.tmp.dir}/baz/foo.bar");
+                shell.getResourceOutputStream("/tmp/baz/foo.bar");
 
         resourceOutputStream.write("Foo\nBar\nBaz".getBytes());
 
         shell.addSetupScript("" +
                 "create table foobar(str string) " +
-                "location '${hiveconf:hadoop.tmp.dir}/baz'");
+                "location '/tmp/baz'");
 
         shell.start();
 
@@ -69,7 +69,7 @@ public class ResourceOutputStreamTest {
     public void sequenceFile() throws IOException {
 
         OutputStream resourceOutputStream =
-                shell.getResourceOutputStream("${hiveconf:hadoop.tmp.dir}/baz/foo.bar");
+                shell.getResourceOutputStream("/tmp/baz/foo.bar");
 
         SequenceFile.Writer sequenceFileWriter = createSequenceFileWriter(resourceOutputStream);
 
@@ -81,7 +81,7 @@ public class ResourceOutputStreamTest {
         shell.addSetupScript("" +
                 "create table foobar(str string) " +
                 "STORED AS SEQUENCEFILE " +
-                "location '${hiveconf:hadoop.tmp.dir}/baz'");
+                "location '/tmp/baz'");
 
         shell.start();
 

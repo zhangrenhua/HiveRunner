@@ -1,1 +1,2 @@
+DROP TABLE IF EXISTS love;
 create table love(id string);

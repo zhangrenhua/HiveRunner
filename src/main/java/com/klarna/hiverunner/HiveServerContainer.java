@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,22 +26,17 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveVariableSource;
 import org.apache.hadoop.hive.conf.VariableSubstitution;
 import org.apache.hadoop.hive.ql.exec.tez.TezJobExecHelper;
-import org.apache.hadoop.hive.ql.session.SessionState;
-import org.apache.hive.service.Service;
-import org.apache.hive.service.cli.CLIService;
-import org.apache.hive.service.cli.HiveSQLException;
-import org.apache.hive.service.cli.OperationHandle;
-import org.apache.hive.service.cli.RowSet;
-import org.apache.hive.service.cli.SessionHandle;
-import org.apache.hive.service.server.HiveServer2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.PrintStream;
 import java.nio.file.Path;
-import javax.annotation.Nullable;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -52,18 +47,14 @@ public class HiveServerContainer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HiveServerContainer.class);
 
-    private CLIService client;
     private final HiveServerContext context;
-    private SessionHandle sessionHandle;
-    private HiveServer2 hiveServer2;
-    private SessionState currentSessionState;
+
+    private Map<String, String> hiveVariables;
+
+    private Connection connection;
 
     public HiveServerContainer(HiveServerContext context) {
         this.context = context;
-    }
-
-    public CLIService getClient() {
-        return client;
     }
 
     /**
@@ -73,34 +64,19 @@ public class HiveServerContainer {
      * @param hiveVars   HiveVars to pass on to the HiveServer for this session
      */
     public void init(Map<String, String> testConfig, Map<String, String> hiveVars) {
-
-        context.init();
-
-        HiveConf hiveConf = context.getHiveConf();
-
-        // merge test case properties with hive conf before HiveServer is started.
-        for (Map.Entry<String, String> property : testConfig.entrySet()) {
-            hiveConf.set(property.getKey(), property.getValue());
-        }
+        hiveVariables = hiveVars;
 
         try {
-            hiveServer2 = new HiveServer2();
-            hiveServer2.init(hiveConf);
+            connection = DriverManager.getConnection("jdbc:hive2://192.168.10.211:12345/default", "noUser", "noPassword");
 
-            // Locate the ClIService in the HiveServer2
-            for (Service service : hiveServer2.getServices()) {
-                if (service instanceof CLIService) {
-                    client = (CLIService) service;
+
+            // merge test case properties with hive conf before HiveServer is started.
+            for (Map.Entry<String, String> property : testConfig.entrySet()) {
+                try (final java.sql.Statement statement = connection.createStatement()) {
+                    statement.execute("set " + property.getKey() + "=" + property.getValue());
                 }
             }
-
-            Preconditions.checkNotNull(client, "ClIService was not initialized by HiveServer2");
-
-            sessionHandle = client.openSession("noUser", "noPassword", null);
-
-            SessionState sessionState = client.getSessionManager().getSession(sessionHandle).getSessionState();
-            currentSessionState = sessionState;
-            currentSessionState.setHiveVariables(hiveVars);
+            Preconditions.checkNotNull(connection, "ClIService was not initialized by HiveServer2");
         } catch (Exception e) {
             throw new IllegalStateException("Failed to create HiveServer :" + e.getMessage(), e);
         }
@@ -122,36 +98,30 @@ public class HiveServerContainer {
         // This PrintStream hack can be removed if/when IntelliJ fixes https://youtrack.jetbrains.com/issue/IDEA-120628
         // See https://github.com/klarna/HiveRunner/issues/94 for more info.
         PrintStream initialPrintStream = System.out;
-        try {
-            System.setOut(new IgnoreClosePrintStream(System.out));
-            OperationHandle handle = client.executeStatement(sessionHandle, hiveql, new HashMap<>());
-            List<Object[]> resultSet = new ArrayList<>();
-            if (handle.hasResultSet()) {
-                /*
-                 * fetchResults will by default return 100 rows per fetch (hive 14). For big result sets we need to continuously fetch the result set until all
-                 * rows are fetched.
-                 */
-                RowSet rowSet;
-                while ((rowSet = client.fetchResults(handle)) != null && rowSet.numRows() > 0) {
-                    for (Object[] row : rowSet) {
-                        resultSet.add(row.clone());
-                    }
+        System.setOut(new IgnoreClosePrintStream(System.out));
+
+        try (final java.sql.Statement statement = connection.createStatement(); final ResultSet resultSet = statement.executeQuery(hiveql)) {
+            List<Object[]> result = new ArrayList<>();
+            final int columnCount = resultSet.getMetaData().getColumnCount();
+            while (resultSet.next()) {
+                Object[] row = new Object[columnCount];
+                for (int i = 0; i < columnCount; i++) {
+                    row[i] = resultSet.getObject(i + 1);
                 }
+                result.add(row);
             }
 
-            LOGGER.debug("ResultSet:\n"
-                    + Joiner.on("\n").join(Iterables.transform(resultSet, new Function<Object[], String>() {
-                        @Nullable
-                        @Override
-                        public String apply(@Nullable Object[] objects) {
-                            return Joiner.on(", ").useForNull("null").join(objects);
-                        }
-                    })));
+            LOGGER.debug("ResultSet:\n" + Joiner.on("\n").join(Iterables.transform(result, new Function<Object[], String>() {
+                @Nullable
+                @Override
+                public String apply(@Nullable Object[] objects) {
+                    return Joiner.on(", ").useForNull("null").join(objects);
+                }
+            })));
 
-            return resultSet;
-        } catch (HiveSQLException e) {
-            throw new IllegalArgumentException("Failed to executeQuery Hive query " + hiveql + ": " + e.getMessage(),
-                    e);
+            return result;
+        } catch (SQLException e) {
+            throw new IllegalArgumentException("Failed to executeQuery Hive query " + hiveql + ": " + e.getMessage(), e);
         } finally {
             System.setOut(initialPrintStream);
         }
@@ -176,29 +146,18 @@ public class HiveServerContainer {
             // Reset to default schema
             executeStatement("USE default");
         } catch (Throwable e) {
-            LOGGER.warn("Failed to reset to default schema: " + e.getMessage()
-                    + ". Turn on log level debug for stacktrace");
+            LOGGER.warn("Failed to reset to default schema: " + e.getMessage() + ". Turn on log level debug for stacktrace");
             LOGGER.debug(e.getMessage(), e);
         }
 
         try {
-            client.closeSession(sessionHandle);
+            connection.close();
         } catch (Throwable e) {
-            LOGGER.warn(
-                "Failed to close client session: " + e.getMessage() + ". Turn on log level debug for stacktrace");
+            LOGGER.warn("Failed to close client session: " + e.getMessage() + ". Turn on log level debug for stacktrace");
             LOGGER.debug(e.getMessage(), e);
         }
 
-        try {
-            hiveServer2.stop();
-        } catch (Throwable e) {
-            LOGGER.warn("Failed to stop HiveServer2: " + e.getMessage() + ". Turn on log level debug for stacktrace");
-            LOGGER.debug(e.getMessage(), e);
-        }
-
-        hiveServer2 = null;
-        client = null;
-        sessionHandle = null;
+        connection = null;
 
         LOGGER.info("Tore down HiveServer instance");
     }
@@ -212,20 +171,24 @@ public class HiveServerContainer {
     }
 
     public HiveConf getHiveConf() {
-        return hiveServer2.getHiveConf();
+        HiveConf hiveConf = new HiveConf();
+        hiveConf.set("hive.metastore.uris", "thrift://192.168.10.211:9083");
+        //当前版本2.3.4与集群3.0版本不兼容，加入此设置
+//        hiveMetaStoreClient.setMetaConf("hive.metastore.client.capability.check", "false");
+        return hiveConf;
     }
 
     public VariableSubstitution getVariableSubstitution() {
-        // Make sure to set the session state for this thread before returning the VariableSubstitution. If not set,
-        // hivevar:s will not be evaluated.
-        SessionState.setCurrentSessionState(currentSessionState);
-
-        SessionState ss = currentSessionState;
         return new VariableSubstitution(new HiveVariableSource() {
             @Override
             public Map<String, String> getHiveVariable() {
-                return ss.getHiveVariables();
+                return hiveVariables;
             }
         });
     }
+
+    public Connection getConnection() {
+        return connection;
+    }
+
 }

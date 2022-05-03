@@ -27,8 +27,10 @@ public abstract class AnnotatedBaseTestClass {
 
     @BeforeEach
     public void setup() {
+        shell.execute("DROP DATABASE IF EXISTS test_db");
         shell.execute("create database test_db");
 
+        shell.execute("DROP TABLE IF EXISTS test_db.test_table");
         shell.execute(new StringBuilder()
                 .append("create table test_db.test_table (")
                 .append("c0 string")

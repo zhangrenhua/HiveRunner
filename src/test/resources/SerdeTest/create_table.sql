@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS serde_test;
 CREATE TABLE serde_test (
   key STRING,
   value STRING
@@ -7,4 +8,4 @@ WITH SERDEPROPERTIES  (
 "input.regex" = "([0-9]*)#([A-Z]*).*"
 )
 STORED AS TEXTFILE
-LOCATION '${hiveconf:hadoop.tmp.dir}/serde';
+LOCATION '/tmp/serde';

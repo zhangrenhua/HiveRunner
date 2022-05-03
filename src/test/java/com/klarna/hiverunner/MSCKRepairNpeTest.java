@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,11 +30,12 @@ public class MSCKRepairNpeTest {
     public void testMsckRepair() {
         hiveShell.execute("set hive.mv.files.thread=0");
 
+        hiveShell.execute("DROP TABLE IF EXISTS foo");
         hiveShell.execute("CREATE EXTERNAL TABLE foo (id int)" +
                 "  PARTITIONED BY(month int)" +
                 "  ROW FORMAT DELIMITED FIELDS TERMINATED BY ','" +
                 "  STORED AS TEXTFILE" +
-                "  LOCATION '${hiveconf:hadoop.tmp.dir}/foo';");
+                "  LOCATION '/tmp/foo';");
 
 
         // This will throw a NPE in Hive 2.1.0/2.2.0 (See https://issues.apache.org/jira/browse/HIVE-14798 and https://issues.apache.org/jira/browse/HIVE-14924) 

@@ -64,8 +64,10 @@ public class SchemaResetBetweenTestMethodsTest {
     @Test
     public void createDatabaseFoo() {
         // See comments in test case above
+        hiveShell.execute("DROP TABLE IF EXISTS baz");
         hiveShell.execute("create table baz (i int)");
         hiveShell.execute("select * from default.baz");
+        hiveShell.execute("DROP DATABASE IF EXISTS foo");
         hiveShell.execute("create database foo");
         hiveShell.execute("USE foo");
 

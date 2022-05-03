@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,12 +33,13 @@ public class MultipleExecutionEnginesTest {
 
     @Test
     public void test() throws IOException {
-        shell.getResourceOutputStream("${hiveconf:hadoop.tmp.dir}/foo/data.txt").write("a,b,c\nd,e,f".getBytes());
+        shell.getResourceOutputStream("/tmp/foo/data.txt").write("a,b,c\nd,e,f".getBytes());
+        shell.addSetupScript("DROP TABLE IF EXISTS foo");
         shell.addSetupScript(
                 "create external table foo (s1 string, s2 string, s3 string) " +
                         "ROW FORMAT DELIMITED " +
                         "FIELDS TERMINATED BY ',' " +
-                        "LOCATION '${hiveconf:hadoop.tmp.dir}/foo/'");
+                        "LOCATION '/tmp/foo/'");
         shell.start();
 
         Assertions.assertEquals(Arrays.asList("a\tb\tc", "d\te\tf"), shell.executeQuery("select * from foo"));

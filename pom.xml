@@ -39,6 +39,8 @@
     <hadoop.version>3.1.0</hadoop.version>
     <hive.execution.engine>mr</hive.execution.engine>
     <hive.version>3.1.2</hive.version>
+    <minio.version>8.3.7</minio.version>
+    <okhttp.version>4.9.0</okhttp.version>
     <junit.jupiter.version>5.7.1</junit.jupiter.version>
     <license.maven.plugin.version>3.0</license.maven.plugin.version>
     <tez.version>0.9.1</tez.version>
@@ -46,6 +48,18 @@
   </properties>
   
   <dependencies>
+    <dependency>
+      <groupId>io.minio</groupId>
+      <artifactId>minio</artifactId>
+      <version>${minio.version}</version>
+    </dependency>
+    <!-- minio依赖于okhttp3，所以pom文件还需要引入一下okhttp3 -->
+    <dependency>
+      <groupId>com.squareup.okhttp3</groupId>
+      <artifactId>okhttp</artifactId>
+      <version>${okhttp.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-serde</artifactId>
@@ -182,6 +196,8 @@
             was removed in java 8) -->
           <argLine>-Xmx2024m</argLine>
           <!-- below needed due to https://github.com/HiveRunner/HiveRunner/commit/1f9a9b353c3b072f7898a6b4fa277474674d4b54 -->
+          <!-- 虚拟机的最大线程数，由于很多测试用例的表都是重名的，所以并发会出问题。 -->
+          <forkCount>1</forkCount>
           <reuseForks>false</reuseForks>
           <systemProperties>
             <!--

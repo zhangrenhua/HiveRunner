@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,16 +33,19 @@ public class IntegerPartitionFormatTest {
     @HiveSQL(files = {})
     public HiveShell hiveShell;
 
-    @HiveResource(targetFile = "${hiveconf:hadoop.tmp.dir}/foo/month=07/foo.data")
+    @HiveResource(targetFile = "/tmp/foo/month=07/foo.data")
     public String data = "06\n6";
 
     @HiveSetupScript
-    public String setup =
+    public String setup1 = "DROP TABLE IF EXISTS foo;";
+
+    @HiveSetupScript
+    public String setup2 =
             "CREATE EXTERNAL TABLE foo (id int)" +
                     "  PARTITIONED BY(month int)" +
                     "  ROW FORMAT DELIMITED FIELDS TERMINATED BY ','" +
                     "  STORED AS TEXTFILE" +
-                    "  LOCATION '${hiveconf:hadoop.tmp.dir}/foo';";
+                    "  LOCATION '/tmp/foo';";
 
     @BeforeEach
     public void repair() {

@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,14 +33,16 @@ public class TestMethodIntegrityTest {
 
     @Test
     public void collisionCourseTestMethodOne() {
-        shell.addResource("${hiveconf:hadoop.tmp.dir}/foo/bar/data1.csv", "1\n2\n3");
-        shell.addResource("${hiveconf:hadoop.tmp.dir}/foo/bar/data2.csv", "4\n5");
+        shell.addResource("/tmp/foo/bar/data1.csv", "1\n2\n3");
+        shell.addResource("/tmp/foo/bar/data2.csv", "4\n5");
+        shell.addSetupScript("DROP DATABASE IF EXISTS foo;");
         shell.addSetupScript("create database foo;");
+        shell.addSetupScript("DROP TABLE IF EXISTS foo.bar;");
         shell.addSetupScript("" +
                 " CREATE table foo.bar(id int)" +
                 " ROW FORMAT DELIMITED FIELDS TERMINATED BY ','" +
                 " STORED AS TEXTFILE" +
-                " LOCATION '${hiveconf:hadoop.tmp.dir}/foo/bar';");
+                " LOCATION '/tmp/foo/bar';");
         shell.start();
         List<String> actual = shell.executeQuery("select * from foo.bar");
         List<String> expected = Arrays.asList("1", "2", "3", "4", "5");
@@ -50,14 +52,16 @@ public class TestMethodIntegrityTest {
 
     @Test
     public void collisionCourseTestMethodTwo() {
-        shell.addResource("${hiveconf:hadoop.tmp.dir}/foo/bar/data1.csv", "9\n2\n8");
-        shell.addResource("${hiveconf:hadoop.tmp.dir}/foo/bar/data3.csv", "6\n7");
+        shell.addResource("/tmp/foo/bar/data1.csv", "9\n2\n8");
+        shell.addResource("/tmp/foo/bar/data3.csv", "6\n7");
+        shell.addSetupScript("DROP DATABASE IF EXISTS foo;");
+        shell.addSetupScript("DROP TABLE IF EXISTS foo.bar;");
         shell.addSetupScript("create database foo;");
         shell.addSetupScript("" +
                 " CREATE table foo.bar(id int)" +
                 " ROW FORMAT DELIMITED FIELDS TERMINATED BY ','" +
                 " STORED AS TEXTFILE" +
-                " LOCATION '${hiveconf:hadoop.tmp.dir}/foo/bar';");
+                " LOCATION '/tmp/foo/bar';");
         shell.start();
         List<String> actual = shell.executeQuery("select * from foo.bar");
         List<String> expected = Arrays.asList("2", "6", "7", "8", "9");

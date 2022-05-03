@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,8 @@ public class BigResultSetTest {
      */
     @Test
     public void bigResultSetTest() throws IOException {
-        hiveShell.setHiveConfValue("location", "${hiveconf:hadoop.tmp.dir}/foo");
+        hiveShell.setHiveConfValue("location", "/tmp/foo");
+        hiveShell.addSetupScript("DROP TABLE IF EXISTS foo");
         hiveShell.addSetupScript("CREATE table FOO (s String) LOCATION '${hiveconf:location}'");
         OutputStream ros = hiveShell.getResourceOutputStream("${hiveconf:location}/foo.data");
 

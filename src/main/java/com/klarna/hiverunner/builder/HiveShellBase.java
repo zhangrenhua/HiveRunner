@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,6 @@
  */
 package com.klarna.hiverunner.builder;
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.klarna.hiverunner.HiveServerContainer;
@@ -42,11 +24,26 @@ import com.klarna.hiverunner.data.InsertIntoTable;
 import com.klarna.hiverunner.sql.StatementLexer;
 import com.klarna.hiverunner.sql.cli.CommandShellEmulator;
 import com.klarna.hiverunner.sql.split.StatementSplitter;
+import io.minio.MinioClient;
+import io.minio.PutObjectArgs;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.*;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * HiveShell implementation delegating to HiveServerContainer
  */
-class HiveShellBase implements HiveShell {
+public class HiveShellBase implements HiveShell {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HiveShellBase.class);
     private static final String DEFAULT_NULL_REPRESENTATION = "NULL";
@@ -66,7 +63,7 @@ class HiveShellBase implements HiveShell {
     protected Path cwd;
 
     HiveShellBase(HiveServerContainer hiveServerContainer, Map<String, String> hiveConf, List<String> setupScripts,
-            List<HiveResource> resources, List<Script> scriptsUnderTest, CommandShellEmulator commandShellEmulator) {
+                  List<HiveResource> resources, List<Script> scriptsUnderTest, CommandShellEmulator commandShellEmulator) {
         this.hiveServerContainer = hiveServerContainer;
         this.hiveConf = hiveConf;
         this.commandShellEmulator = commandShellEmulator;
@@ -284,7 +281,7 @@ class HiveShellBase implements HiveShell {
     @Override
     public InsertIntoTable insertInto(String databaseName, String tableName) {
         assertStarted();
-        return InsertIntoTable.newInstance(databaseName, tableName, getHiveConf());
+        return InsertIntoTable.newInstance(databaseName, tableName, getHiveConf(), hiveServerContainer);
     }
 
     private void executeSetupScripts() {
@@ -295,27 +292,49 @@ class HiveShellBase implements HiveShell {
     }
 
     private void prepareResources() {
-        for (HiveResource resource : resources) {
-            String expandedPath = hiveServerContainer.expandVariableSubstitutes(resource.getTargetFile());
+        try {
+            MinioClient minioClient =
+                    MinioClient.builder()
+                            .endpoint("http://192.168.10.211:38000")
+                            .credentials("BMXG3WP8JA9D1GSD2AJJ", "vl32x2t0sBxy0BEgcY9Iz442HK2HobPTNw4T99yK")
+                            .build();
 
-            assertResourcePreconditions(resource, expandedPath);
+            for (HiveResource resource : resources) {
+                String expandedPath = hiveServerContainer.expandVariableSubstitutes(resource.getTargetFile());
 
-            Path targetFile = Paths.get(expandedPath);
+                assertResourcePreconditions(resource, expandedPath);
 
-            // Create target file in the tmp dir and write test data to it.
-            try {
-                Files.createDirectories(targetFile.getParent());
-                OutputStream targetFileOutputStream = Files.newOutputStream(targetFile, StandardOpenOption.CREATE_NEW);
-                targetFileOutputStream.write(resource.getOutputStream().toByteArray());
-                resource.getOutputStream().close();
-                targetFileOutputStream.close();
-            } catch (IOException e) {
-                throw new IllegalStateException("Failed to create resource target file: " + targetFile + " ("
-                        + resource.getTargetFile() + "): " + e.getMessage(), e);
+                Path targetFile = Paths.get(expandedPath);
+
+                //开始上传
+                try {
+                    final ByteArrayInputStream inputStream = new ByteArrayInputStream(resource.getOutputStream().toByteArray());
+                    minioClient.putObject(
+                            PutObjectArgs.builder().bucket("baize").object(expandedPath).contentType("application/octet-stream")
+                                    .stream(inputStream, inputStream.available(), -1)
+                                    .build());
+                } catch (Exception e) {
+                    throw new IllegalStateException("Failed to create resource target file: " + targetFile + " ("
+                            + resource.getTargetFile() + "): " + e.getMessage(), e);
+                }
+
+//                // Create target file in the tmp dir and write test data to it.
+//                try {
+//                    Files.createDirectories(targetFile.getParent());
+//                    OutputStream targetFileOutputStream = Files.newOutputStream(targetFile, StandardOpenOption.CREATE_NEW);
+//                    targetFileOutputStream.write(resource.getOutputStream().toByteArray());
+//                    resource.getOutputStream().close();
+//                    targetFileOutputStream.close();
+//                } catch (IOException e) {
+//                    throw new IllegalStateException("Failed to create resource target file: " + targetFile + " ("
+//                            + resource.getTargetFile() + "): " + e.getMessage(), e);
+//                }
+
+                LOGGER.debug("Created hive resource " + targetFile);
+
             }
-
-            LOGGER.debug("Created hive resource " + targetFile);
-
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -340,9 +359,9 @@ class HiveShellBase implements HiveShell {
         boolean isTargetFileWithinTestDir = expandedPath
                 .startsWith(hiveServerContainer.getBaseDir().toString());
 
-        Preconditions.checkArgument(isTargetFileWithinTestDir,
-                "All resource target files should be created in a subdirectory to the test case basedir %s : %s",
-                hiveServerContainer.getBaseDir().getRoot(), resource.getTargetFile());
+//        Preconditions.checkArgument(isTargetFileWithinTestDir,
+//                "All resource target files should be created in a subdirectory to the test case basedir %s : %s",
+//                hiveServerContainer.getBaseDir().getRoot(), resource.getTargetFile());
     }
 
     protected final void assertFileExists(Path file) {
@@ -403,7 +422,7 @@ class HiveShellBase implements HiveShell {
 
     @Override
     public List<String> executeQuery(Charset charset, File script, String rowValuesDelimitedBy,
-            String replaceNullWith) {
+                                     String replaceNullWith) {
         return executeQuery(charset, Paths.get(script.toURI()), rowValuesDelimitedBy, replaceNullWith);
     }
 
@@ -413,7 +432,7 @@ class HiveShellBase implements HiveShell {
 
     @Override
     public List<String> executeQuery(Charset charset, Path script, String rowValuesDelimitedBy,
-            String replaceNullWith) {
+                                     String replaceNullWith) {
         assertStarted();
         assertFileExists(script);
         try {
@@ -439,5 +458,9 @@ class HiveShellBase implements HiveShell {
     @Override
     public Path getCwd() {
         return cwd;
+    }
+
+    public HiveServerContainer getHiveServerContainer() {
+        return hiveServerContainer;
     }
 }

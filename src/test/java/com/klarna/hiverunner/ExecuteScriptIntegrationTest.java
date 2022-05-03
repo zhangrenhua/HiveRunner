@@ -45,6 +45,8 @@ public class ExecuteScriptIntegrationTest {
     File file = new File(temp.getRoot(), "insert_data.hql");
 
     try (PrintStream out = new PrintStream(file)) {
+      out.println("DROP DATABASE IF EXISTS test_db;");
+      out.println("DROP TABLE IF EXISTS test_db.test_table;");
       out.println("create database test_db;");
       out.println("create table test_db.test_table (");
       out.println("  c0 string");

@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ public class PartitionSupportTest {
     @HiveProperties
     public Map<String, String> hiveProperties = MapUtils.putAll(new HashMap(), new String[]{
             "table.name", tableName,
-            "HDFS_ROOT_FOO", "${hiveconf:hadoop.tmp.dir}"
+            "HDFS_ROOT_FOO", "/tmp"
     });
 
     @HiveSQL(files = "PartitionSupportTest/hql_example.sql")

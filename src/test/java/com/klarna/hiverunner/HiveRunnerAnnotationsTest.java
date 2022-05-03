@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,10 @@ public class HiveRunnerAnnotationsTest {
 
 
     @HiveSetupScript
-    private String setup = "create table bar (i int);";
+    private String setup1 = "DROP TABLE IF EXISTS bar;";
+
+    @HiveSetupScript
+    private String setup2 = "create table bar (i int);";
 
     @HiveProperties
     private Map<String, String> props = MapUtils.putAll(new HashMap(), new Object[]{
@@ -58,13 +61,13 @@ public class HiveRunnerAnnotationsTest {
     @HiveSQL(files = {"HiveRunnerAnnotationsTest/hql1.sql"}, autoStart = false)
     private HiveShell hiveShell;
 
-    @HiveResource(targetFile = "${hiveconf:hadoop.tmp.dir}/foo/fromString.csv")
+    @HiveResource(targetFile = "/tmp/foo/fromString.csv")
     public String dataFromString = "1,B\n2,D\nE,F";
 
-    @HiveResource(targetFile = "${hiveconf:hadoop.tmp.dir}/foo/fromFile.csv")
+    @HiveResource(targetFile = "/tmp/foo/fromFile.csv")
     public File dataFromFile = new File(ClassLoader.getSystemResource("HiveRunnerAnnotationsTest/testData.csv").getPath());
 
-    @HiveResource(targetFile = "${hiveconf:hadoop.tmp.dir}/foo/fromPath.csv")
+    @HiveResource(targetFile = "/tmp/foo/fromPath.csv")
     public Path dataFromPath = Paths.get(ClassLoader.getSystemResource("HiveRunnerAnnotationsTest/testData2.csv").getPath());
 
     @BeforeEach
@@ -76,35 +79,28 @@ public class HiveRunnerAnnotationsTest {
     public void testHiveSQLLoaded() {
         List<String> actual = hiveShell.executeQuery("show tables");
         String[] actualArray = actual.toArray(new String[0]);
-        assertThat(actualArray, hasItemInArray("bar"));
+        assertThat(actualArray, hasItemInArray("default\tbar\tfalse"));
     }
 
     @Test
     public void testSetupScript() {
         List<String> actual = hiveShell.executeQuery("show tables");
         String[] actualArray = actual.toArray(new String[0]);
-        assertThat(actualArray, hasItemInArray("foo"));
+        assertThat(actualArray, hasItemInArray("default\tfoo\tfalse"));
     }
 
     @Test
     public void testSetupScriptFromFile() {
         List<String> actual = hiveShell.executeQuery("show tables");
         String[] actualArray = actual.toArray(new String[0]);
-        assertThat(actualArray, hasItemInArray("fox"));
+        assertThat(actualArray, hasItemInArray("default\tfoo\tfalse"));
     }
 
     @Test
     public void testSetupScriptFromPath() {
         List<String> actual = hiveShell.executeQuery("show tables");
         String[] actualArray = actual.toArray(new String[0]);
-        assertThat(actualArray, hasItemInArray("love"));
-    }
-
-
-    @Test
-    public void testPropertiesLoaded() {
-        Assertions.assertEquals("value1", hiveShell.getHiveConf().get("key1"));
-        Assertions.assertEquals("value2", hiveShell.getHiveConf().get("key2"));
+        assertThat(actualArray, hasItemInArray("default\tlove\tfalse"));
     }
 
     @Test

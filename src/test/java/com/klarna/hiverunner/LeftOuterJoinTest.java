@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ import java.util.List;
 @ExtendWith(HiveRunnerExtension.class)
 public class LeftOuterJoinTest {
 
-    private final String hdfsSourceFoo = "${hiveconf:hadoop.tmp.dir}/foo";
-    private final String hdfsSourceBar = "${hiveconf:hadoop.tmp.dir}/bar";
+    private final String hdfsSourceFoo = "/tmp/foo";
+    private final String hdfsSourceBar = "/tmp/bar";
 
     @HiveSetupScript
     String setup =

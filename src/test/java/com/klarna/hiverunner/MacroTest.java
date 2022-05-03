@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ public class MacroTest {
     @HiveSQL(files = {})
     public HiveShell hiveShell;
 
-    @HiveResource(targetFile = "${hiveconf:hadoop.tmp.dir}/foo/foo.data")
+    @HiveResource(targetFile = "/tmp/foo/foo.data")
     public String data = "easteregg";
 
     @HiveSetupScript
@@ -41,7 +41,7 @@ public class MacroTest {
             "CREATE TABLE corpus (stanza string)" +
                     "  ROW FORMAT DELIMITED FIELDS TERMINATED BY ','" +
                     "  STORED AS TEXTFILE" +
-                    "  LOCATION '${hiveconf:hadoop.tmp.dir}/foo';";
+                    "  LOCATION '/tmp/foo';";
 
     @HiveSetupScript
     public String macro =

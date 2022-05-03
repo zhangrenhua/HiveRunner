@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,10 +31,13 @@ import java.util.Arrays;
 public class MethodLevelResourceTest {
 
     @HiveSetupScript
-    String createTable = "CREATE EXTERNAL TABLE foo (i INT, j INT, k INT)" +
+    String createTable1 = "DROP TABLE IF EXISTS foo";
+
+    @HiveSetupScript
+    String createTable2 = "CREATE EXTERNAL TABLE foo (i INT, j INT, k INT)" +
             "  ROW FORMAT DELIMITED FIELDS TERMINATED BY ','" +
             "  STORED AS TEXTFILE" +
-            "  LOCATION '${hiveconf:hadoop.tmp.dir}'";
+            "  LOCATION '/tmp'";
 
     @HiveSQL(files = {}, autoStart = false)
     private HiveShell hiveShell;
@@ -42,7 +45,7 @@ public class MethodLevelResourceTest {
     @Test()
     public void resourceLoadingAsStringTest() {
 
-        hiveShell.addResource("${hiveconf:hadoop.tmp.dir}/data.csv", "1,2,3");
+        hiveShell.addResource("/tmp/data.csv", "1,2,3");
         hiveShell.start();
 
         Assertions.assertEquals(Arrays.asList("1\t2\t3"), hiveShell.executeQuery("SELECT * FROM foo"));
@@ -51,7 +54,7 @@ public class MethodLevelResourceTest {
     @Test()
     public void resourceLoadingAsFileTest() throws URISyntaxException {
 
-        hiveShell.addResource("${hiveconf:hadoop.tmp.dir}/data.csv",
+        hiveShell.addResource("/tmp/data.csv",
                 new File(Resources.getResource("MethodLevelResourceTest/MethodLevelResourceTest.txt").toURI()));
 
         hiveShell.start();

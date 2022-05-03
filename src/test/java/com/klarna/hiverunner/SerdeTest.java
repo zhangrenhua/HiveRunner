@@ -1,6 +1,6 @@
 /**
  * Copyright (C) 2013-2021 Klarna AB
- * Copyright (C) 2021 The HiveRunner Contributors
+ * Copyright (C) 2021-2022 The HiveRunner Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,9 +31,9 @@ import java.util.List;
 @ExtendWith(HiveRunnerExtension.class)
 public class SerdeTest {
 
-    private final String hdfsSource = "${hiveconf:hadoop.tmp.dir}/serde";
+    private final String hdfsSource = "/tmp/serde";
 
-    @HiveResource(targetFile = "${hiveconf:hadoop.tmp.dir}/customSerde/data.csv")
+    @HiveResource(targetFile = "/tmp/customSerde/data.csv")
     private String data1 = "" +
             "a,b,c\n" +
             "f,g,h\n" +
